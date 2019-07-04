@@ -22,6 +22,7 @@
         <com.101tec.zkclient>0.10</com.101tec.zkclient>
         <org.mybatis.spring.boot.mybatis-spring-boot-starter>2.0.1</org.mybatis.spring.boot.mybatis-spring-boot-starter>
         <mysql.mysql-connector-java>5.1.26</mysql.mysql-connector-java>
+        <mssql-jdbc.version>6.4.0.jre8</mssql-jdbc.version>
         <org.slf4j.slf4j-api>1.6.1</org.slf4j.slf4j-api>
         <com.squareup.okhttp3.okhttp>3.14.1</com.squareup.okhttp3.okhttp>
         <org.apache.curator.curator-recipes>2.13.0</org.apache.curator.curator-recipes>
@@ -94,6 +95,11 @@
                 <groupId>mysql</groupId>
                 <artifactId>mysql-connector-java</artifactId>
                 <version>${mysql.mysql-connector-java}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.microsoft.sqlserver</groupId>
+                <artifactId>mssql-jdbc</artifactId>
+                <version>${mssql-jdbc.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>

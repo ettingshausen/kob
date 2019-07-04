@@ -64,12 +64,12 @@ public interface LogCollectMapper {
      * @return 日志列表
      */
     @Select("<script>" +
-            "   select " + COLUMN +
+            "   with t as (select " + COLUMN +
+            "   ,ROW_NUMBER() OVER (ORDER BY id ) AS RowNum" +
             "   from " + TABLE +
             "   where project_code = #{projectCode} " +
-            "   <if test='taskUuid != null'> and task_uuid = #{taskUuid} </if> " +
-            "   order by id " +
-            "   limit ${start},${limit} " +
+            "   <if test='taskUuid != null'> and task_uuid = #{taskUuid} </if>) " +
+            "   select * from t where t.RowNum >= #{start} and t.RowNum <![CDATA[ < ]]>  #{start} + #{limit}" +
             "</script>")
     List<LogCollect> selectPageByProjectCodeAndTaskUuid(@Param("projectCode") String projectCode,
                                                         @Param("taskUuid") String taskUuid,

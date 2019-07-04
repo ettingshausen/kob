@@ -55,10 +55,11 @@ public interface ProjectUserMapper {
      * @param prefix     集群
      * @return 用户列表
      */
-    @Select("select " + COLUMN +
+    @Select("with t as (select " + COLUMN +
+            ",ROW_NUMBER() OVER (ORDER BY id desc ) AS RowNum " +
             "from " + TABLE +
-            "where project_code = #{projectCode} " +
-            "limit ${start},${limit} ")
+            "where project_code = #{projectCode}) " +
+            "select * from t where t.RowNum >= #{start} and t.RowNum < #{start} + #{limit} ")
     List<ProjectUser> selectPageByProjectCode(@Param("projectCode") String projectCode,
                                               @Param("start") Integer start,
                                               @Param("limit") Integer limit,

@@ -92,11 +92,11 @@ public interface JobCronMapper {
      * @param prefix
      * @return
      */
-    @Select("select " + COLUMN +
+    @Select("with t as (select " + COLUMN +
+            ",ROW_NUMBER() OVER (order by suspend asc, id desc ) AS RowNum " +
             "from  " + TABLE +
-            "where project_code = #{projectCode} " +
-            "order by suspend asc, id desc " +
-            "limit ${start},${limit} ")
+            "where project_code = #{projectCode} )" +
+            "select * from t where t.RowNum >= #{start} and t.RowNum < #{start} + #{limit} " )
     List<JobCron> selectPageJobCronByProject(@Param("projectCode") String projectCode,
                                              @Param("start") Integer start,
                                              @Param("limit") Integer limit,

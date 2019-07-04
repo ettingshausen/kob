@@ -23,5 +23,9 @@
             <groupId>com.ke</groupId>
             <artifactId>schedule-server-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+        </dependency>
     </dependencies>
 </project>

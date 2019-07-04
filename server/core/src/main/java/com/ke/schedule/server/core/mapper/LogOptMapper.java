@@ -39,11 +39,11 @@ public interface LogOptMapper {
     int selectCountByCostTime(@Param("costTime") Integer costTime, @Param("prefix") String prefix);
 
     @Select("<script>" +
-            "   select " + COLUMN +
+            "   with t as (select " + COLUMN +
+            "   ,ROW_NUMBER() OVER (ORDER BY id desc ) AS RowNum" +
             "   from " + TABLE +
             "   where 1 = 1 <if test='costTime != null'> and cost_time >= #{costTime} </if>" +
-            "   order by id desc " +
-            "   limit ${start},${limit}" +
+            "   ) select * from t where t.RowNum >= #{start} and t.RowNum <![CDATA[ < ]]>  #{start} + #{limit}" +
             "</script>")
     List<LogOpt> selectPageByCostTime(@Param("costTime") Integer costTime,
                                       @Param("start") Integer start,

@@ -45,10 +45,9 @@ public interface TaskWaitingMapper {
      * @param limit       限定条数
      * @return 可以出发任务list
      */
-    @Select("select * " +
+    @Select("select  top ${limit}  *" +
             "from " + table +
-            "where trigger_time <= #{triggerTime} " +
-            "limit ${limit} ")
+            "where trigger_time <= #{triggerTime} ")
     List<TaskWaiting> findTriggerTaskInLimit(@Param("triggerTime") long triggerTime,
                                              @Param("limit") int limit,
                                              @Param("prefix") String prefix);
@@ -114,11 +113,12 @@ public interface TaskWaitingMapper {
      * @param prefix
      * @return
      */
-    @Select("select * " +
+    @Select("with t as (select *," +
+            "ROW_NUMBER() OVER (ORDER BY trigger_time asc ) AS RowNum" +
             "from " + table +
             "where project_code = #{projectCode} " +
             "order by trigger_time asc " +
-            "limit ${start},${limit} ")
+            ") select * from t where t.RowNum >=#{limit} and t.RowNum < #{limit} + #{start} ")
     List<TaskWaiting> selectPageByProjectCode(@Param("projectCode") String projectCode,
                                               @Param("start") Integer start,
                                               @Param("limit") Integer limit,

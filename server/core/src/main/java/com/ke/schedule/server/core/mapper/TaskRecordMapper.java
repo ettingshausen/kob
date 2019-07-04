@@ -54,11 +54,12 @@ public interface TaskRecordMapper {
             "where complete = 0 and trigger_time+timeout_threshold*1000 < #{now} ")
     int selectCountExpireTaskRecord(@Param("now") long now, @Param("prefix") String prefix);
 
-    @Select(" select " + COLUMN +
+
+    @Select("with t as(select " + COLUMN +
+            ",ROW_NUMBER() OVER (ORDER BY id desc ) AS RowNum " +
             " from " + TABLE +
             " where state = " + TaskRecordStateConstant.EXECUTE_SUCCESS +
-            " order by id desc " +
-            " limit ${start}, ${limit} ")
+            "select * from t where t.RowNum >= #{start} and t.RowNum < #{start} + #{limit}")
     List<TaskRecord> selectListExpireTaskRecord(@Param("start") int start, @Param("limit") int limit, @Param("prefix") String prefix);
 
     @Update("<script>" +
@@ -88,25 +89,32 @@ public interface TaskRecordMapper {
             "</script>")
     int selectCountByParam(@Param("param") Map<String, Object> param, @Param("prefix") String prefix);
 
+
     @Select("<script>" +
-            "   select " + COLUMN +
+            "   with t as (select " + COLUMN +
+            "   ,ROW_NUMBER() OVER (ORDER BY id desc ) AS RowNum" +
             "   from " + TABLE +
             "   where project_code = #{param.projectCode} " +
             "       <if test='param.triggerTimeStart != null'> and trigger_time &gt;= #{param.triggerTimeStart} </if> " +
             "       <if test='param.triggerTimeEnd != null'> and trigger_time &lt;= #{param.triggerTimeEnd} </if> " +
-            "       <if test='param.jobUuid != null'> and job_uuid = #{param.jobUuid} </if> " +
-            "   order by id desc " +
-            "   limit ${start},${limit} " +
+            "       <if test='param.jobUuid != null'> and job_uuid = #{param.jobUuid} </if>) " +
+            "select * from t where t.RowNum >= #{start} and t.RowNum <![CDATA[ < ]]>  #{start} + #{limit}" +
             "</script>")
     List<TaskRecord> selectPageByParam(@Param("param") Map<String, Object> param,
                                        @Param("start") Integer start,
                                        @Param("limit") Integer limit,
                                        @Param("prefix") String prefix);
 
-    @Select("select " + COLUMN +
+    /**
+     * 根据作业JobUuid查询最后最后执行任务用于作业是否依赖上一周期场景
+     *
+     * @param jobUuid 作业标识
+     * @param prefix 集群
+     * @return 任务记录
+     */
+    @Select("select top 1" + COLUMN +
             "from " + TABLE +
-            "where  job_uuid = #{jobUuid} and state != '" + TaskRecordStateConstant.RELY_UNDO + "' " +
-            "order by id desc " +
-            "limit 1")
+            "where  job_uuid = #{jobUuid} and ancestor = 1 and state != '" + TaskRecordStateConstant.RELY_UNDO + "' " +
+            "order by id desc ")
     TaskRecord selectLastUndoTaskByJobUuid(@Param("jobUuid") String jobUuid, @Param("prefix") String prefix);
 }

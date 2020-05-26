@@ -62,8 +62,12 @@ class TaskWaiting implements Serializable {
 
     private String batchType;
 
+    @Lob
+    @Column
     private String userParams;
 
+    @Lob
+    @Column
     private String innerParams;
 
     private String cronExpression;

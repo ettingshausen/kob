@@ -91,10 +91,14 @@ public @NoArgsConstructor @Getter @Setter class TaskRecord implements Serializab
     /**
      * 用户自定义参数
      */
+    @Lob
+    @Column
     private String userParams;
     /**
      * 内部参数
      */
+    @Lob
+    @Column
     private String innerParams;
     /**
      * 最后返回结果

@@ -6,7 +6,7 @@ spring:
     name: kob-server-processor
   datasource:
     username: root
-    password: v37km99v
+    password: pwd
     url: jdbc:mysql://localhost:3306/kob?useUnicode=yes&characterEncoding=UTF8
     driver-class-name: com.mysql.jdbc.Driver
   jpa:

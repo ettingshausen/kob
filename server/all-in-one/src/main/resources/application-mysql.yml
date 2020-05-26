@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    username: root
+    password: pwd
+    url: jdbc:mysql://localhost:3306/kob?useUnicode=yes&characterEncoding=UTF8
+    driver-class-name: com.mysql.jdbc.Driver
+    tomcat:
+      init-s-q-l: SET NAMES utf8mb4

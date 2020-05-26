@@ -30,6 +30,7 @@
         <module>server/console</module>
         <module>server/processor</module>
         <module>server/core</module>
+        <module>server/all-in-one</module>
         <module>client/spring</module>
         <module>client/spring-starter</module>
         <module>demo/monitor</module>
@@ -45,6 +46,16 @@
             <dependency>
                 <groupId>com.ke</groupId>
                 <artifactId>schedule-server-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ke</groupId>
+                <artifactId>schedule-server-console</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ke</groupId>
+                <artifactId>schedule-server-processor</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

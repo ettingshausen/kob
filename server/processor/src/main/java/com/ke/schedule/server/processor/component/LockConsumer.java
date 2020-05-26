@@ -22,7 +22,7 @@ public @Slf4j enum LockConsumer {
         return o -> {
             boolean create = false;
             try {
-                System.out.println("WAITING_TASK_EXECUTOR");
+                log.debug("WAITING_TASK_EXECUTOR");
                 try {
                     byte[] b = curator.getData().forPath(path);
                     LockData exitLock = JSONObject.parseObject(new String(b), LockData.class);

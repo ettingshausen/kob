@@ -8,10 +8,9 @@
         <groupId>com.ke</groupId>
         <artifactId>schedule-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
-        <relativePath>../../pom.xml</relativePath>
+        <relativePath>../..</relativePath>
     </parent>
 
-    <version>1.0.0-SNAPSHOT</version>
     <artifactId>schedule-server-core</artifactId>
     <name>schedule-server-core ${project.version}</name>
 

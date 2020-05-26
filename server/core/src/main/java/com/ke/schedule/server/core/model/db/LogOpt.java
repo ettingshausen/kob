@@ -6,10 +6,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
+import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Date;
 
@@ -29,6 +26,8 @@ class LogOpt implements Serializable {
     private String userCode;
     private String userName;
     private String optUrl;
+    @Lob
+    @Column
     private String request;
     private String response;
     private Long costTime;

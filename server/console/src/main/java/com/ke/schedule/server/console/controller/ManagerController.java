@@ -88,20 +88,24 @@ class ManagerController {
         }
         boolean zkExist = curator.checkExists().forPath(ZkPathConstant.clientNodePath(zp, projectCode)) != null;
         boolean dbExist = indexService.existProject(projectCode);
-        if (zkExist || dbExist) {
+        if (!zkExist) {
+            try {
+                curator.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(ZkPathConstant.clientTaskPath(zp, projectCode));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            try {
+                curator.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(ZkPathConstant.clientNodePath(zp, projectCode));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        if (!dbExist) {
+            indexService.initProject(user.getCode(), user.getName(), user.getConfiguration(), projectCode, projectName);
+        } else {
             return ResponseData.error("项目已存在");
         }
-        indexService.initProject(user.getCode(), user.getName(), user.getConfiguration(), projectCode, projectName);
-        try {
-            curator.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(ZkPathConstant.clientTaskPath(zp, projectCode));
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-        try {
-            curator.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(ZkPathConstant.clientNodePath(zp, projectCode));
-        } catch (Exception e){
-            e.printStackTrace();
-        }
+
         return ResponseData.success();
     }
 

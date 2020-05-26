@@ -6,14 +6,15 @@ spring:
     name: kob-server-processor
   datasource:
     username: root
-    password: admin123
+    password: v37km99v
     url: jdbc:mysql://localhost:3306/kob?useUnicode=yes&characterEncoding=UTF8
     driver-class-name: com.mysql.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
 
-mybatis:
-  configuration:
-    map-underscore-to-camel-case: true
-#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
 
 debug: false
 

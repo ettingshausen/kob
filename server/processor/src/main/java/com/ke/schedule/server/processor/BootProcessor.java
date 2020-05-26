@@ -1,9 +1,10 @@
 package com.ke.schedule.server.processor;
 
-import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 /**
  * SpringBoot 启动类
@@ -11,9 +12,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @Author: zhaoyuguang
  * @Date: 2018/9/12 下午4:40
  */
-
+@EntityScan("com.ke")
+@EnableJpaRepositories(basePackages = "com.ke")
 @SpringBootApplication(scanBasePackages = {"com.ke"})
-@MapperScan("com.ke.schedule.server.core.mapper")
 public class BootProcessor implements CommandLineRunner {
 
     public static void main(String[] args) {

@@ -2,11 +2,13 @@ package com.ke.schedule.server.processor.component;
 
 import com.ke.schedule.basic.constant.ZkPathConstant;
 import com.ke.schedule.basic.support.NamedThreadFactory;
+import com.ke.schedule.server.core.common.OffsetBasedPageRequest;
 import com.ke.schedule.server.core.model.db.TaskRecord;
 import com.ke.schedule.server.core.service.ScheduleService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.framework.CuratorFramework;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 

@@ -6,7 +6,10 @@ import com.ke.schedule.basic.support.KobUtils;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Date;
 
@@ -16,12 +19,14 @@ import java.util.Date;
  * @Author: zhaoyuguang
  * @Date: 2018/6/14 下午5:07
  */
-
+@Entity
 public @NoArgsConstructor @Getter @Setter class User implements Serializable {
     private static final long serialVersionUID = -1518163329205751092L;
     /**
      * id 数据库主键
      */
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Integer id;
     /**
      * 账号 唯一索引
@@ -42,14 +47,17 @@ public @NoArgsConstructor @Getter @Setter class User implements Serializable {
     /**
      * version 乐观锁
      */
+    @Version
     private Integer version;
     /**
      * 创建时间 CURRENT_TIMESTAMP
      */
+    @CreationTimestamp
     private Date gmtCreated;
     /**
      * 更新时间 CURRENT_TIMESTAMP
      */
+    @UpdateTimestamp
     private Date gmtModified;
 
     /**

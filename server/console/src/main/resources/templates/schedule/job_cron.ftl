@@ -161,16 +161,16 @@
             if(row.suspend){
                 opt_0 = opt_0 + '<a href="javascript:;" class="kob-opt-suspend" data-job_uuid="'+row.jobUuid+'" data-suspend="'+row.suspend+'"><span class="label label-primary"><i class="fa fa-unlock-alt"></i> 运行</span></a> ';
             } else {
-                opt_0 = opt_0 + '<a href="javascript:;" class="kob-opt-suspend" data-job_uuid="'+row.jobUuid+'" data-suspend="'+row.suspend+'"><span class="label label-warning"><i class="fa fa-lock"></i> 暂停</span></a> ';
+                opt_0 = opt_0 + '<a href="javascript:;" class="kob-opt-suspend" data-job_uuid="' + row.jobUuid + '" data-suspend="' + row.suspend + '"><span class="label label-warning"><i class="fa fa-lock"></i> 暂停</span></a> ';
             }
-            return opt_0 + '<a href="javascript:;" class="kob-opt-del" data-job_uuid="'+row.jobUuid+'"><span class="label label-danger"><i class="fa fa-trash-o"></i> 删除</span></a>';
+            return opt_0 + '<a href="javascript:;" class="kob-opt-del" data-job_uuid="' + row.jobUuid + '"><span class="label label-danger"><i class="fa fa-trash-o"></i> 删除</span></a>';
         }
 
         var _table = $("#tableContainer").fooTable({
             url: '/schedule/job_cron_list.json',
             templateId: 'foo_table'
         });
-        _table.post({}, 1);
+        _table.post({}, 0);
 
         $(document).on("click", ".kob-opt-suspend", function () {
             var params = {};

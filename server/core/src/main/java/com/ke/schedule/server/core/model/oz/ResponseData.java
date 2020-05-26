@@ -15,16 +15,19 @@ import java.util.Map;
  * @Date: 2018/7/28 下午9:02
  */
 
-public @NoArgsConstructor @Getter @Setter class ResponseData implements Serializable {
+public @NoArgsConstructor
+@Getter
+@Setter
+class ResponseData implements Serializable {
     private static final long serialVersionUID = -213286064058861615L;
 
     private boolean success;
     private String message;
-    private int results;
+    private Long results;
     private Collection<?> rows;
     private Map<?, ?> others;
 
-    public ResponseData(boolean success, int results) {
+    public ResponseData(boolean success, Long results) {
         this.success = success;
         this.results = results;
     }
@@ -39,7 +42,7 @@ public @NoArgsConstructor @Getter @Setter class ResponseData implements Serializ
     }
 
 
-    public ResponseData(boolean success, int results, Collection<?> rows) {
+    public ResponseData(boolean success, Long results, Collection<?> rows) {
         this.success = success;
         this.results = results;
         this.rows = rows;
@@ -53,15 +56,23 @@ public @NoArgsConstructor @Getter @Setter class ResponseData implements Serializ
         return new ResponseData(true);
     }
 
-    public static ResponseData success(int results, Collection<?> rows) {
+    public static ResponseData success(Long results, Collection<?> rows) {
         return new ResponseData(true, results, rows);
     }
 
-    public static ResponseData success(int results) {
+    public static ResponseData success(int results, Collection<?> rows) {
+        return new ResponseData(true, (long) results, rows);
+    }
+
+    public static ResponseData success(Long results) {
         return new ResponseData(true, results);
     }
 
+    public static ResponseData success(int results) {
+        return new ResponseData(true, (long) results);
+    }
+
     public static ResponseData success(Collection<?> rows) {
-        return new ResponseData(true, rows.size(), rows);
+        return new ResponseData(true, (long) rows.size(), rows);
     }
 }

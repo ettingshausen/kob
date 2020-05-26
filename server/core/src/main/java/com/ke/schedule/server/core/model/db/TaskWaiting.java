@@ -5,7 +5,10 @@ import com.ke.schedule.basic.model.InnerParams;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Date;
 
@@ -15,9 +18,14 @@ import java.util.Date;
  * @Author: zhaoyuguang
  * @Date: 2018/7/30 上午11:58
  */
-
-public @NoArgsConstructor @Getter @Setter class TaskWaiting implements Serializable {
+@Entity
+public @NoArgsConstructor
+@Getter
+@Setter
+class TaskWaiting implements Serializable {
     private static final long serialVersionUID = -859835960095783295L;
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
     private String projectCode;
@@ -63,11 +71,11 @@ public @NoArgsConstructor @Getter @Setter class TaskWaiting implements Serializa
     private Integer timeoutThreshold;
 
     private Long triggerTime;
-
+    @Version
     private Integer version;
-
+    @CreationTimestamp
     private Date gmtCreated;
-
+    @UpdateTimestamp
     private Date gmtModified;
 
     public InnerParams getInnerParamsBean() {

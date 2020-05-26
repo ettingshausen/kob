@@ -5,17 +5,20 @@ import com.ke.schedule.basic.constant.ZkPathConstant;
 import com.ke.schedule.basic.support.KobUtils;
 import com.ke.schedule.server.core.common.Attribute;
 import com.ke.schedule.server.core.common.FtlPath;
-import com.ke.schedule.server.core.mapper.ProjectUserMapper;
 import com.ke.schedule.server.core.model.db.ProjectUser;
 import com.ke.schedule.server.core.model.db.User;
 import com.ke.schedule.server.core.model.oz.ResponseData;
 import com.ke.schedule.server.core.model.oz.UserConfiguration;
+import com.ke.schedule.server.core.repository.ProjectUserRepository;
 import com.ke.schedule.server.core.service.IndexService;
 import com.ke.schedule.server.core.service.ManagerService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.zookeeper.CreateMode;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,7 +29,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.List;
 
 /**
  * 涉及项目管理的api接口
@@ -45,12 +47,13 @@ class ManagerController {
     private IndexService indexService;
     @Resource(name = "managerService")
     private ManagerService managerService;
-    @Resource
-    private ProjectUserMapper projectUserMapper;
     @Value("${kob-schedule.zk-prefix}")
     private String zp;
     @Value("${kob-schedule.mysql-prefix}")
     private String mp;
+
+    @Resource
+    private ProjectUserRepository projectUserRepository;
 
     /**
      * 项目接入 view入口
@@ -117,22 +120,18 @@ class ManagerController {
     /**
      * 项目人员列表
      *
-     * @param start
-     * @param limit
+     * @param pageNum
+     * @param pageSize
      * @return
      */
     @RequestMapping(value = "/project_user_list.json")
     @ResponseBody
-    public ResponseData projectUserList(@RequestParam("start") Integer start, @RequestParam("limit") Integer limit) {
+    public ResponseData projectUserList(@RequestParam int pageNum, @RequestParam int pageSize) {
         HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
         ProjectUser projectUser = (ProjectUser) request.getSession().getAttribute(Attribute.PROJECT_SELECTED);
-        int count = managerService.selectProjectUserCountByProjectCode(projectUser.getProjectCode());
-        if (count == 0) {
-            return ResponseData.success(0);
-        }
-        User user = (User) request.getSession().getAttribute(Attribute.SESSION_USER);
-        List<ProjectUser> projectUserList = managerService.selectProjectUserPageByProjectCode(user.getCode(), projectUser.getProjectCode(), start, limit);
-        return ResponseData.success(count, projectUserList);
+        Pageable pageable = PageRequest.of(pageNum, pageSize);
+        Page<ProjectUser> page = projectUserRepository.findProjectUserByProjectCode(projectUser.getProjectCode(), pageable);
+        return ResponseData.success(page.getTotalElements(), page.getContent());
     }
 
     /**
@@ -205,7 +204,7 @@ class ManagerController {
         userConfiguration.setRun(run);
         userConfiguration.setEnd(end);
         projectUser.setConfiguration(JSONObject.toJSONString(userConfiguration));
-        projectUserMapper.updateConfiguration(projectUser, mp);
+        projectUserRepository.save(projectUser);
         request.getSession().setAttribute(Attribute.PROJECT_SELECTED, projectUser);
         return ResponseData.success();
     }

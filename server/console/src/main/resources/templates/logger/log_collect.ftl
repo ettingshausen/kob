@@ -109,7 +109,7 @@
                 var value = $(this).val();
                 params[name] = value;
             });
-            _table.post(params, 1);
+            _table.post(params, 0);
         });
         $("#search_button").trigger("click");
     });

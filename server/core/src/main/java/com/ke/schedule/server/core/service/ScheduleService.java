@@ -17,8 +17,6 @@ import java.util.Set;
 
 public interface ScheduleService {
 
-    List<TaskWaiting> findTriggerTaskInLimit(long triggerTime, int limit, String mp);
-
     List<JobCron> findRunningCronJob(String mp);
 
     void createCronWaitingTaskForTime(String serverIdentification, JobCron jobCron, boolean appendPreviousTask, Integer intervalMin, Date now);
@@ -37,17 +35,11 @@ public interface ScheduleService {
 
     void handleTaskLog(LogContext context, TaskRecord taskRecord);
 
-    int selectCronJobCountByProjectCode(String projectCode);
-
-    List<JobCron> selectJobCronPageByProject(String projectCode, Integer start, Integer limit);
-
-    int selectTaskWaitingCountByProjectCode(String projectCode);
-
-    List<TaskWaiting> selectTaskWaitingPageByProject(String projectCode, Integer start, Integer limit);
+    Long selectCronJobCountByProjectCode(String projectCode);
 
     void saveJobRealTime(TaskWaiting taskWaiting);
 
-    int startJobCron(String jobUuid, Boolean suspend, String projectCode);
+    void startJobCron(String jobUuid, Boolean suspend, String projectCode);
 
     void suspendJobCron(String jobUuid, Boolean suspend, String projectCode);
 
@@ -55,9 +47,9 @@ public interface ScheduleService {
 
     int triggerTaskWaiting(String taskUuid, String projectCode);
 
-    int delTaskWaiting(String taskUuid, String projectCode);
+    void delTaskWaiting(String taskUuid, String projectCode);
 
-    int saveJobCron(JobCron jobCron);
+    void saveJobCron(JobCron jobCron);
 
     void editJobCron(JobCron editJobCron);
 

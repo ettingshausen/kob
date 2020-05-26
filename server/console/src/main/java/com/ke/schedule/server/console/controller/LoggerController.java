@@ -1,5 +1,6 @@
 package com.ke.schedule.server.console.controller;
 
+import com.ke.schedule.basic.support.KobUtils;
 import com.ke.schedule.server.core.common.Attribute;
 import com.ke.schedule.server.core.common.FtlPath;
 import com.ke.schedule.server.core.model.db.LogCollect;
@@ -7,24 +8,31 @@ import com.ke.schedule.server.core.model.db.LogOpt;
 import com.ke.schedule.server.core.model.db.ProjectUser;
 import com.ke.schedule.server.core.model.db.TaskRecord;
 import com.ke.schedule.server.core.model.oz.ResponseData;
+import com.ke.schedule.server.core.repository.LogOptRepository;
+import com.ke.schedule.server.core.repository.TaskRecordRepository;
 import com.ke.schedule.server.core.service.LoggerService;
-import com.ke.schedule.basic.support.KobUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.annotation.Resource;
+import javax.persistence.criteria.Predicate;
 import javax.servlet.http.HttpServletRequest;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * @Author: zhaoyuguang
@@ -32,12 +40,19 @@ import java.util.Map;
  */
 @RequestMapping("/logger")
 @Controller
-public @Slf4j class LoggerController {
+public @Slf4j
+class LoggerController {
 
     @Resource(name = "loggerService")
     private LoggerService loggerService;
 
-    private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    @Resource
+    private TaskRecordRepository taskRecordRepository;
+
+    @Resource
+    private LogOptRepository logOptRepository;
+
+    private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     /**
      * 任务记录view
@@ -64,36 +79,50 @@ public @Slf4j class LoggerController {
      */
     @RequestMapping(value = "/task_record_list.json")
     @ResponseBody
-    public ResponseData taskWaitingList() {
+    public ResponseData taskWaitingList(@RequestParam int pageNum, @RequestParam int pageSize) {
         HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
         Integer start = Integer.valueOf(request.getParameter("start"));
         Integer limit = Integer.valueOf(request.getParameter("limit"));
+        String triggerTimeStart = request.getParameter("trigger_time_start");
+        String triggerTimeEnd = request.getParameter("trigger_time_end");
+
         ProjectUser projectUser = (ProjectUser) request.getSession().getAttribute(Attribute.PROJECT_SELECTED);
-        Map<String, Object> param = new HashMap<>(10);
-        try {
-            String triggerTimeStart = request.getParameter("trigger_time_start");
-            if (!KobUtils.isEmpty(triggerTimeStart)) {
-                param.put("triggerTimeStart", sdf.parse(triggerTimeStart).getTime());
-            }
-            String triggerTimeEnd = request.getParameter("trigger_time_end");
-            if (!KobUtils.isEmpty(triggerTimeEnd)) {
-                param.put("triggerTimeEnd", sdf.parse(triggerTimeEnd).getTime());
-            }
-        } catch (ParseException e) {
-            log.error("sdf_error", e);
-            return ResponseData.error("时间输入有误");
-        }
+
         String jobUuid = request.getParameter("job_uuid");
-        if (!KobUtils.isEmpty(jobUuid)) {
-            param.put("jobUuid", jobUuid);
-        }
-        param.put("projectCode", projectUser.getProjectCode());
-        int count = loggerService.selectTaskRecordCountByParam(param);
-        if (count == 0) {
-            return ResponseData.success(0);
-        }
-        List<TaskRecord> taskWaitingList = loggerService.selectTaskRecordPageByParam(param, start, limit);
-        return ResponseData.success(count, taskWaitingList);
+
+
+        Pageable pageable = PageRequest.of(pageNum, pageSize);
+        Specification<TaskRecord> specification = (Specification<TaskRecord>) (root, criteriaQuery, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (!StringUtils.isEmpty(projectUser.getProjectCode())) {
+                Predicate predicate = criteriaBuilder.equal(root.get("projectCode").as(String.class), projectUser.getProjectCode());
+                predicates.add(predicate);
+            }
+            if (!StringUtils.isEmpty(jobUuid)) {
+                Predicate predicate = criteriaBuilder.equal(root.get("jobUuid").as(String.class), jobUuid);
+                predicates.add(predicate);
+            }
+            try {
+                if (!StringUtils.isEmpty(triggerTimeStart)) {
+                    Predicate predicate = criteriaBuilder.greaterThanOrEqualTo(root.get("triggerTime").as(Long.class), sdf.parse(triggerTimeStart).getTime());
+                    predicates.add(predicate);
+                }
+                if (!StringUtils.isEmpty(triggerTimeEnd)) {
+                    Predicate predicate = criteriaBuilder.lessThanOrEqualTo(root.get("triggerTime").as(Long.class), sdf.parse(triggerTimeEnd).getTime());
+                    predicates.add(predicate);
+                }
+            } catch (ParseException e) {
+                e.printStackTrace();
+                log.error("sdf_error", e);
+// todo                return ResponseData.error("时间输入有误");
+            }
+            if (predicates.size() == 0) {
+                return null;
+            }
+            return criteriaBuilder.or(predicates.toArray(new Predicate[]{}));
+        };
+        Page<TaskRecord> page = taskRecordRepository.findAll(specification, pageable);
+        return ResponseData.success(page.getTotalElements(), page.getContent());
     }
 
     /**
@@ -118,7 +147,7 @@ public @Slf4j class LoggerController {
      */
     @RequestMapping(value = "/log_collect_list.json")
     @ResponseBody
-    public ResponseData logCollectList() {
+    public ResponseData logCollectList(@RequestParam int pageNum, @RequestParam int pageSize) {
         HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
         Integer start = Integer.valueOf(request.getParameter("start"));
         Integer limit = Integer.valueOf(request.getParameter("limit"));
@@ -128,11 +157,13 @@ public @Slf4j class LoggerController {
         if (!KobUtils.isEmpty(paramTaskUuid)) {
             taskUuid = paramTaskUuid;
         }
-        int count = loggerService.selectLogCollectCountByProjectCodeAndTaskUuid(projectUser.getProjectCode(), taskUuid);
+        Long count = loggerService.selectLogCollectCountByProjectCodeAndTaskUuid(projectUser.getProjectCode(), taskUuid);
         if (count == 0) {
             return ResponseData.success(0);
         }
-        List<LogCollect> logCollectList = loggerService.selectLogCollectPageByProjectAndTaskUuid(projectUser.getProjectCode(), taskUuid, start, limit);
+
+        Pageable pageable = PageRequest.of(pageNum, pageSize);
+        List<LogCollect> logCollectList = loggerService.selectLogCollectPageByProjectAndTaskUuid(projectUser.getProjectCode(), taskUuid, pageable);
         return ResponseData.success(count, logCollectList);
     }
 
@@ -155,17 +186,25 @@ public @Slf4j class LoggerController {
      */
     @RequestMapping(value = "/log_opt_list.json")
     @ResponseBody
-    public ResponseData logOptList() {
+    public ResponseData logOptList(@RequestParam int pageNum, @RequestParam int pageSize) {
         HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-        Integer start = Integer.valueOf(request.getParameter("start"));
-        Integer limit = Integer.valueOf(request.getParameter("limit"));
         Integer costTime = KobUtils.isEmpty(request.getParameter("cost_time")) ?
                 null : Integer.valueOf(request.getParameter("cost_time"));
-        int count = loggerService.selectLogOptCountByCostTime(costTime);
-        if (count == 0) {
-            return ResponseData.success(0);
-        }
-        List<LogOpt> logCollectList = loggerService.selectLogOptPageByProject(costTime, start, limit);
-        return ResponseData.success(count, logCollectList);
+
+        Pageable pageable = PageRequest.of(pageNum, pageSize);
+        Specification<LogOpt> specification = (Specification<LogOpt>) (root, criteriaQuery, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (costTime != null) {
+                Predicate predicate = criteriaBuilder.greaterThan(root.get("costTime").as(Long.class), (long) costTime);
+                predicates.add(predicate);
+            }
+            if (predicates.size() == 0) {
+                return null;
+            }
+            return criteriaBuilder.or(predicates.toArray(new Predicate[]{}));
+        };
+        Page<LogOpt> page = logOptRepository.findAll(specification, pageable);
+
+        return ResponseData.success(page.getTotalElements(), page.getContent());
     }
 }

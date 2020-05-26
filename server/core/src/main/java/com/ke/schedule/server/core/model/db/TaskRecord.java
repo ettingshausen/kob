@@ -5,7 +5,10 @@ import com.ke.schedule.basic.model.InnerParams;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Date;
 
@@ -14,6 +17,7 @@ import java.util.Date;
  * @Date: 2018/7/31 上午10:45
  */
 
+@Entity
 public @NoArgsConstructor @Getter @Setter class TaskRecord implements Serializable {
 
     private static final long serialVersionUID = -4248471694521667743L;
@@ -21,6 +25,8 @@ public @NoArgsConstructor @Getter @Setter class TaskRecord implements Serializab
     /**
      * id
      */
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
     /**
      * 项目标识
@@ -142,14 +148,17 @@ public @NoArgsConstructor @Getter @Setter class TaskRecord implements Serializab
     /**
      * 乐观锁
      */
+    @Version
     private Integer version;
     /**
      * 创建时间
      */
+    @CreationTimestamp
     private Date gmtCreated;
     /**
      * 最后更新时间
      */
+    @UpdateTimestamp
     private Date gmtModified;
 
     public InnerParams getInnerParamsBean() {

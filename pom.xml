@@ -20,7 +20,6 @@
         <org.projectlombok.lombok>1.16.16</org.projectlombok.lombok>
         <com.alibaba.fastjson>1.2.32</com.alibaba.fastjson>
         <com.101tec.zkclient>0.10</com.101tec.zkclient>
-        <org.mybatis.spring.boot.mybatis-spring-boot-starter>2.0.1</org.mybatis.spring.boot.mybatis-spring-boot-starter>
         <mysql.mysql-connector-java>5.1.26</mysql.mysql-connector-java>
         <org.slf4j.slf4j-api>1.6.1</org.slf4j.slf4j-api>
         <com.squareup.okhttp3.okhttp>3.14.1</com.squareup.okhttp3.okhttp>
@@ -85,16 +84,7 @@
                 <artifactId>curator-recipes</artifactId>
                 <version>${org.apache.curator.curator-recipes}</version>
             </dependency>
-            <dependency>
-                <groupId>org.mybatis.spring.boot</groupId>
-                <artifactId>mybatis-spring-boot-starter</artifactId>
-                <version>${org.mybatis.spring.boot.mybatis-spring-boot-starter}</version>
-            </dependency>
-            <dependency>
-                <groupId>mysql</groupId>
-                <artifactId>mysql-connector-java</artifactId>
-                <version>${mysql.mysql-connector-java}</version>
-            </dependency>
+
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>

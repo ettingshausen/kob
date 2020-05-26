@@ -8,22 +8,24 @@ import com.ke.schedule.basic.support.KobUtils;
 import com.ke.schedule.basic.support.UuidUtils;
 import com.ke.schedule.server.core.common.CronExpression;
 import com.ke.schedule.server.core.common.NodeHashLoadBalance;
-import com.ke.schedule.server.core.mapper.JobCronMapper;
-import com.ke.schedule.server.core.mapper.ProjectUserMapper;
-import com.ke.schedule.server.core.mapper.TaskRecordMapper;
-import com.ke.schedule.server.core.mapper.TaskWaitingMapper;
+import com.ke.schedule.server.core.common.OffsetBasedPageRequest;
 import com.ke.schedule.server.core.model.db.JobCron;
 import com.ke.schedule.server.core.model.db.ProjectUser;
 import com.ke.schedule.server.core.model.db.TaskRecord;
 import com.ke.schedule.server.core.model.db.TaskWaiting;
 import com.ke.schedule.server.core.model.oz.BatchType;
 import com.ke.schedule.server.core.model.oz.RetryType;
+import com.ke.schedule.server.core.repository.JobCronRepository;
+import com.ke.schedule.server.core.repository.ProjectUserRepository;
+import com.ke.schedule.server.core.repository.TaskRecordRepository;
+import com.ke.schedule.server.core.repository.TaskWaitingRepository;
 import com.ke.schedule.server.core.service.AlarmService;
 import com.ke.schedule.server.core.service.ScheduleService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.zookeeper.CreateMode;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -41,13 +43,7 @@ public @Slf4j
 class ScheduleServiceImpl implements ScheduleService {
 
     @Resource
-    private JobCronMapper jobCronMapper;
-    @Resource
-    private TaskWaitingMapper taskWaitingMapper;
-    @Resource
-    private TaskRecordMapper taskRecordMapper;
-    @Resource
-    private ProjectUserMapper projectUserMapper;
+    private ProjectUserRepository projectUserRepository;
     @Resource
     private CuratorFramework curator;
     @Resource
@@ -56,6 +52,12 @@ class ScheduleServiceImpl implements ScheduleService {
     private String zp;
     @Value("${kob-schedule.mysql-prefix}")
     private String mp;
+    @Resource
+    private JobCronRepository jobCronRepository;
+    @Resource
+    private TaskRecordRepository taskRecordRepository;
+    @Resource
+    private TaskWaitingRepository taskWaitingRepository;
 
     /**
      * 生成通用等待推送任务
@@ -93,14 +95,10 @@ class ScheduleServiceImpl implements ScheduleService {
         return taskWaiting;
     }
 
-    @Override
-    public List<TaskWaiting> findTriggerTaskInLimit(long triggerTime, int limit, String mp) {
-        return taskWaitingMapper.findTriggerTaskInLimit(triggerTime, limit, mp);
-    }
 
     @Override
     public List<JobCron> findRunningCronJob(String mp) {
-        return jobCronMapper.findCronJobBySuspend(false, mp);
+        return jobCronRepository.findJobCronsBySuspendEquals(false);
     }
 
     @Override
@@ -131,14 +129,20 @@ class ScheduleServiceImpl implements ScheduleService {
             timeAfter = nextTriggerTime;
         }
         if (!CollectionUtils.isEmpty(cronTaskWaitingList)) {
-            int updateCount = jobCronMapper.updateRunningJobCronLastGenerateTriggerTime(jobCron.getJobUuid(),
-                    jobCron.getCronExpression(), lastGenerateTriggerTime, timeAfter.getTime(), jobCron.getVersion(), mp);
-            if (updateCount != 1) {
+
+            jobCron.setLastGenerateTriggerTime(timeAfter.getTime());
+            JobCron res = null;
+            try {
+                res = jobCronRepository.save(jobCron);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            if (res == null) {
                 log.error("job_cron data has change uuid:" + jobCron.getJobUuid());
                 throw new RuntimeException("job_cron data has change uuid:" + jobCron.getJobUuid());
             }
-            int insertCount = taskWaitingMapper.insertBatch(cronTaskWaitingList, mp);
-            System.out.println("====" + insertCount + "======");
+            taskWaitingRepository.saveAll(cronTaskWaitingList);
         }
     }
 
@@ -157,16 +161,17 @@ class ScheduleServiceImpl implements ScheduleService {
         context.getData().setUserParam(JSONObject.parseObject(tw.getUserParams()));
         String projectTaskPath = ZkPathConstant.clientTaskPath(cluster, context.getData().getProjectCode());
         int state = TaskRecordStateConstant.PUSH_SUCCESS;
-        Map<String, Object> param = new HashMap<>(10);
+        TaskRecord params = new TaskRecord();
         try {
             curator.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(projectTaskPath + ZkPathConstant.BACKSLASH + JSONObject.toJSONString(context));
         } catch (Exception e) {
             log.error("pushTask_error 推送zk事件异常", e);
             state = TaskRecordStateConstant.PUSH_FAIL;
-            param.put("complete", true);
+            params.setComplete(true);
         }
-        param.put("state", state);
-        taskRecordMapper.updateByTaskUuid(param, tw.getTaskUuid(), cluster);
+        params.setTaskUuid(tw.getTaskUuid());
+        params.setState(state);
+        taskRecordRepository.save(params);
     }
 
     @Override
@@ -179,7 +184,12 @@ class ScheduleServiceImpl implements ScheduleService {
         overstockTask.forEach(t -> {
             try {
                 curator.delete().forPath(t.getPath());
-                taskRecordMapper.updateStateByTaskUuid(TaskRecordStateConstant.STACKED_RECYCLING, t.getTaskUuid(), zp);
+                TaskRecord record = new TaskRecord();
+                record.setState(TaskRecordStateConstant.STACKED_RECYCLING);
+                record.setTaskUuid(t.getTaskUuid());
+                record.setComplete(true);
+                // update task_record set state = #{state}, complete = 1 where task_uuid = #{taskUuid}
+                taskRecordRepository.save(record);
             } catch (Exception e) {
                 log.error("er", e);
             }
@@ -188,40 +198,49 @@ class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public int selectCountExpireTaskRecord(long now, String cluster) {
-        return taskRecordMapper.selectCountExpireTaskRecord(now, cluster);
+        return (int) taskRecordRepository.countExpireTaskRecord(now);
     }
 
     @Override
     public List<TaskRecord> selectListExpireTaskRecord(int start, int limit, String cluster) {
-        return taskRecordMapper.selectListExpireTaskRecord(start, limit, cluster);
+        Pageable pageable = new OffsetBasedPageRequest(start, limit);
+        return taskRecordRepository.findAll(null, pageable).getContent();
     }
 
     @Override
     public void handleExpireTask(TaskRecord taskExpire, String cluster) {
         //todo  后期需要判断zk 任务是否在运行
-        taskRecordMapper.updateStateByTaskUuid(TaskRecordStateConstant.EXECUTE_EXPIRE, taskExpire.getTaskUuid(), cluster);
+        // update task_record set state = #{state}, complete = 1 where task_uuid = #{taskUuid}
+        TaskRecord record = new TaskRecord();
+        record.setState(TaskRecordStateConstant.EXECUTE_EXPIRE);
+        record.setTaskUuid(taskExpire.getTaskUuid());
+        taskRecordRepository.save(record);
     }
 
     @Override
     public void handleTaskLog(LogContext context, TaskRecord taskRecord) {
-        Map<String, Object> param = new HashMap<>(20);
+        TaskRecord params = new TaskRecord();
+        boolean executeWanted = false;
         if (TaskRecordStateConstant.RECEIVE_SUCCESS == context.getState()) {
-            param.put("clientIdentification", context.getClientIdentification());
-            param.put("consumptionTime", new Date(context.getLogTime()));
-            param.put("state", context.getState());
+            executeWanted = true;
+            params.setClientIdentification(context.getClientIdentification());
+            params.setConsumptionTime(new Date(context.getLogTime()));
+            params.setState(context.getState());
         }
         if (TaskRecordStateConstant.RUNNER_START == context.getState()) {
+            executeWanted = true;
             alarmService.run(taskRecord);
-            param.put("executeStartTime", new Date(context.getLogTime()));
-            param.put("state", context.getState());
+            params.setExecuteStartTime(new Date(context.getLogTime()));
+            params.setState(context.getState());
         }
         if (TaskRecordStateConstant.EXECUTE_SUCCESS == context.getState()
                 || TaskRecordStateConstant.EXECUTE_FAIL == context.getState()
                 || TaskRecordStateConstant.EXECUTE_EXCEPTION == context.getState()) {
             alarmService.end(taskRecord);
-            param.put("complete", true);
-            param.put("executeEndTime", new Date(context.getLogTime()));
-            param.put("state", context.getState());
+            executeWanted = true;
+            params.setComplete(true);
+            params.setExecuteEndTime(new Date(context.getLogTime()));
+            params.setState(context.getState());
         }
         Boolean needAppendRetry = false;
         String appendRetryTaskUuid = null;
@@ -230,15 +249,18 @@ class ScheduleServiceImpl implements ScheduleService {
                 appendRetryTaskUuid = UuidUtils.builder(UuidUtils.AbbrType.AR);
                 InnerParams innerParams = taskRecord.getInnerParamsBean();
                 innerParams.setAppendRetryTaskUuid(appendRetryTaskUuid);
-                param.put("innerParams", JSONObject.toJSONString(innerParams));
+                params.setInnerParams(JSONObject.toJSONString(innerParams));
                 needAppendRetry = true;
+                executeWanted = true;
             }
         }
         if (!KobUtils.isEmpty(context.getMsg())) {
-            param.put("msg", context.getMsg());
+            executeWanted = true;
+            params.setMsg(context.getMsg());
         }
-        if (!param.isEmpty()) {
-            taskRecordMapper.updateByTaskUuid(param, context.getTaskUuid(), mp);
+        if (executeWanted) {
+            params.setTaskUuid(context.getTaskUuid());
+            taskRecordRepository.save(params);
         }
         if (needAppendRetry) {
             handleRetryFailTask(context, taskRecord, appendRetryTaskUuid);
@@ -254,7 +276,7 @@ class ScheduleServiceImpl implements ScheduleService {
      */
     private void handleRetryFailTask(LogContext logContext, TaskRecord taskRecord, String appendRetryTaskUuid) {
         TaskRecord retryTask = createRetryTaskRecord(logContext, taskRecord, appendRetryTaskUuid);
-        taskRecordMapper.insertOne(retryTask, mp);
+        taskRecordRepository.save(retryTask);
         TaskContext context = new TaskContext();
         context.getData().setProjectCode(retryTask.getProjectCode());
         context.getData().setJobUuid(retryTask.getJobUuid());
@@ -268,16 +290,17 @@ class ScheduleServiceImpl implements ScheduleService {
         context.getData().setUserParam(JSONObject.parseObject(retryTask.getUserParams()));
         String projectTaskPath = ZkPathConstant.clientTaskPath(mp, context.getData().getProjectCode());
         int state = TaskRecordStateConstant.PUSH_SUCCESS;
-        Map<String, Object> param = new HashMap<>(10);
+        TaskRecord params = new TaskRecord();
         try {
             curator.create().withMode(CreateMode.PERSISTENT).forPath(projectTaskPath + ZkPathConstant.BACKSLASH + JSONObject.toJSONString(context));
         } catch (Exception e) {
             log.error("pushTask_error 推送zk事件异常", e);
             state = TaskRecordStateConstant.PUSH_FAIL;
-            param.put("complete", true);
+            params.setComplete(true);
         }
-        param.put("state", state);
-        taskRecordMapper.updateByTaskUuid(param, appendRetryTaskUuid, mp);
+        params.setState(state);
+        params.setTaskUuid(appendRetryTaskUuid);
+        taskRecordRepository.save(params);
     }
 
     /**
@@ -319,79 +342,71 @@ class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
-    public int selectCronJobCountByProjectCode(String projectCode) {
-        return jobCronMapper.selectCountByProjectCode(projectCode, mp);
+    public Long selectCronJobCountByProjectCode(String projectCode) {
+        return jobCronRepository.countByProjectCode(projectCode);
     }
 
-    @Override
-    public List<JobCron> selectJobCronPageByProject(String projectCode, Integer start, Integer limit) {
-        return jobCronMapper.selectPageJobCronByProject(projectCode, start, limit, mp);
-    }
-
-    @Override
-    public int selectTaskWaitingCountByProjectCode(String projectCode) {
-        return taskWaitingMapper.selectCountByProjectCode(projectCode, mp);
-    }
-
-    @Override
-    public List<TaskWaiting> selectTaskWaitingPageByProject(String projectCode, Integer start, Integer limit) {
-        return taskWaitingMapper.selectPageByProjectCode(projectCode, start, limit, mp);
-    }
 
     @Override
     public void saveJobRealTime(TaskWaiting taskWaiting) {
-        taskWaitingMapper.insertOne(taskWaiting, mp);
+        taskWaitingRepository.save(taskWaiting);
     }
 
     @Override
-    public int startJobCron(String jobUuid, Boolean suspend, String projectCode) {
-        return jobCronMapper.updateSuspend(!suspend, jobUuid, projectCode, suspend, mp);
+    public void startJobCron(String jobUuid, Boolean suspend, String projectCode) {
+        JobCron toSave = jobCronRepository.findByProjectCodeAndJobUuid(projectCode, jobUuid);
+        toSave.setLastGenerateTriggerTime(null);
+        toSave.setSuspend(!suspend);
+        jobCronRepository.save(toSave);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void suspendJobCron(String jobUuid, Boolean suspend, String projectCode) {
-        jobCronMapper.updateSuspend(!suspend, jobUuid, projectCode, suspend, mp);
-        taskWaitingMapper.deleteByJobUuidAndProjectCode(jobUuid, projectCode, mp);
+
+        JobCron toSave = jobCronRepository.findByProjectCodeAndJobUuid(projectCode, jobUuid);
+        toSave.setLastGenerateTriggerTime(null);
+        toSave.setSuspend(!suspend);
+        jobCronRepository.save(toSave);
+
+        taskWaitingRepository.deleteByJobUuidAndProjectCode(jobUuid, projectCode);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delJobCron(String jobUuid, String projectCode) {
-        jobCronMapper.deleteByJobUuidAndProjectCode(jobUuid, projectCode, mp);
-        taskWaitingMapper.deleteByJobUuidAndProjectCode(jobUuid, projectCode, mp);
+        jobCronRepository.deleteJobCronByJobUuidAndProjectCode(jobUuid, projectCode);
+        taskWaitingRepository.deleteByJobUuidAndProjectCode(jobUuid, projectCode);
     }
 
     @Override
     public int triggerTaskWaiting(String taskUuid, String projectCode) {
-        return taskWaitingMapper.triggerTaskWaiting(System.currentTimeMillis(), taskUuid, projectCode, mp);
+        return taskWaitingRepository.triggerTaskWaiting(System.currentTimeMillis(), taskUuid, projectCode);
     }
 
     @Override
-    public int delTaskWaiting(String taskUuid, String projectCode) {
-        return taskWaitingMapper.deleteByTaskUuidAndProjectCode(taskUuid, projectCode, mp);
+    public void delTaskWaiting(String taskUuid, String projectCode) {
+        taskWaitingRepository.deleteByTaskUuidAndProjectCode(taskUuid, projectCode);
     }
 
     @Override
-    public int saveJobCron(JobCron jobCron) {
-        return jobCronMapper.insertOne(jobCron, mp);
+    public void saveJobCron(JobCron jobCron) {
+        jobCronRepository.save(jobCron);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void editJobCron(JobCron editJobCron) {
-        jobCronMapper.updateOne(editJobCron.getTaskRemark(),
-                editJobCron.getCronExpression(),
-                editJobCron.getUserParams(),
-                editJobCron.getJobUuid(),
-                editJobCron.getProjectCode(),
-                mp);
-        taskWaitingMapper.deleteByJobUuidAndProjectCode(editJobCron.getJobUuid(), editJobCron.getProjectCode(), mp);
+
+        JobCron toSave = jobCronRepository.findByProjectCodeAndJobUuid(editJobCron.getProjectCode(), editJobCron.getJobUuid());
+        toSave.setLastGenerateTriggerTime(null);
+        jobCronRepository.save(toSave);
+        taskWaitingRepository.deleteByJobUuidAndProjectCode(editJobCron.getJobUuid(), editJobCron.getProjectCode());
     }
 
     @Override
     public Set<String> selectServiceProjectCodeSet() {
-        List<ProjectUser> projectList = projectUserMapper.selectProjectIsOwner(mp);
+        List<ProjectUser> projectList = projectUserRepository.findProjectUserByOwner(true);
         Set<String> serviceProjectCodeSet = new HashSet<>();
         if (!KobUtils.isEmpty(projectList)) {
             for (ProjectUser projectUser : projectList) {
@@ -406,7 +421,7 @@ class ScheduleServiceImpl implements ScheduleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean pushTask(TaskWaiting tw, String identification) {
-        int deleteCount = taskWaitingMapper.deleteOne(tw.getTaskUuid(), mp);
+        int deleteCount = taskWaitingRepository.deleteByTaskUuid(tw.getTaskUuid());
         if (deleteCount != 1) {
             log.error("server_admin_code_error_100:删除等待任务数量不为1");
             return false;
@@ -414,20 +429,20 @@ class ScheduleServiceImpl implements ScheduleService {
 
         TaskRecord taskRecord = createCommonTaskRecord(tw, identification);
         if (tw.getRely()) {
-            TaskRecord lastTask = taskRecordMapper.selectLastUndoTaskByJobUuid(tw.getJobUuid(), mp);
+            TaskRecord lastTask = taskRecordRepository.findTop1ByJobUuidOrderByJobUuidDesc(tw.getJobUuid()).get(0);
             if (lastTask == null && TaskRecordStateConstant.isComplete(lastTask.getState())) {
                 taskRecord.setState(TaskRecordStateConstant.RELY_UNDO);
                 taskRecord.setComplete(true);
-                taskRecordMapper.insertOne(taskRecord, mp);
+                taskRecordRepository.save(taskRecord);
                 return false;
             }
         }
 
-        int insertCount = taskRecordMapper.insertOne(taskRecord, mp);
-        if (insertCount != 1) {
-            log.error("server_admin_code_error_101:插入任务记录数量不为1");
-            throw new RuntimeException("server_code_error_101:插入任务记录数量不为1");
-        }
+        taskRecordRepository.save(taskRecord);
+//        if (insertCount != 1) {
+//            log.error("server_admin_code_error_101:插入任务记录数量不为1");
+//            throw new RuntimeException("server_code_error_101:插入任务记录数量不为1");
+//        }
 
         TaskContext context = new TaskContext();
         context.getData().setProjectCode(tw.getProjectCode());
@@ -442,17 +457,18 @@ class ScheduleServiceImpl implements ScheduleService {
         context.getData().setUserParam(JSONObject.parseObject(tw.getUserParams()));
         String projectTaskPath = ZkPathConstant.clientTaskPath(zp, context.getData().getProjectCode());
         int state = TaskRecordStateConstant.PUSH_SUCCESS;
-        Map<String, Object> param = new HashMap<>(10);
+        TaskRecord params = new TaskRecord();
         try {
             alarmService.send(taskRecord);
             curator.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(projectTaskPath + ZkPathConstant.BACKSLASH + context.getZkPath(), JSONObject.toJSONString(context.getData()).getBytes());
         } catch (Exception e) {
             log.error("pushTask_error 推送zk事件异常", e);
             state = TaskRecordStateConstant.PUSH_FAIL;
-            param.put("complete", true);
+            params.setComplete(true);
         }
-        param.put("state", state);
-        taskRecordMapper.updateByTaskUuid(param, tw.getTaskUuid(), mp);
+        params.setState(state);
+        params.setTaskUuid(tw.getTaskUuid());
+        taskRecordRepository.save(params);
         return true;
     }
 

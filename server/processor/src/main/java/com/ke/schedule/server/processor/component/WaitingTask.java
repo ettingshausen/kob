@@ -2,19 +2,14 @@ package com.ke.schedule.server.processor.component;
 
 import com.alibaba.fastjson.JSONObject;
 import com.ke.schedule.basic.constant.ZkPathConstant;
-import com.ke.schedule.basic.model.LockData;
 import com.ke.schedule.basic.model.TaskContext;
 import com.ke.schedule.basic.support.NamedThreadFactory;
 import com.ke.schedule.server.core.common.AdminConstant;
-import com.ke.schedule.server.core.common.AdminLogConstant;
-import com.ke.schedule.server.core.mapper.TaskRecordMapper;
-import com.ke.schedule.server.core.mapper.TaskWaitingMapper;
 import com.ke.schedule.server.core.model.db.TaskWaiting;
+import com.ke.schedule.server.core.repository.TaskWaitingRepository;
 import com.ke.schedule.server.core.service.ScheduleService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -49,6 +44,8 @@ class WaitingTask {
     private String zp;
     @Value("${kob-schedule.mysql-prefix}")
     private String mp;
+    @Resource
+    private TaskWaitingRepository taskWaitingRepository;
 
 
     void initialize() {
@@ -62,7 +59,7 @@ class WaitingTask {
     private Consumer<Object> pushWaitingTask0() {
         return o -> {
             long now = System.currentTimeMillis();
-            List<TaskWaiting> taskWaitingList = scheduleService.findTriggerTaskInLimit(now, 100, mp);
+            List<TaskWaiting> taskWaitingList = taskWaitingRepository.findTop100TaskWaitingsByTriggerTimeLessThanEqual(now);
             if (!CollectionUtils.isEmpty(taskWaitingList)) {
                 taskWaitingList.forEach(e -> {
                     recoveryOverstockTask(e.getProjectCode());

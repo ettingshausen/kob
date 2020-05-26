@@ -9,17 +9,6 @@ spring:
     suffix:
   mvc:
     static-path-pattern: /static/**
-  datasource:
-    username: root
-    password: admin123
-    url: jdbc:mysql://localhost:3306/kob?useUnicode=yes&characterEncoding=UTF8
-    driver-class-name: com.mysql.jdbc.Driver
-
-mybatis:
-  configuration:
-    map-underscore-to-camel-case: true
-# 控制台日志不看就注释此行
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 debug: false
 

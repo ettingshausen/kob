@@ -1,9 +1,9 @@
 package com.ke.schedule.server.core.service.impl;
 
-import com.ke.schedule.server.core.mapper.ProjectUserMapper;
-import com.ke.schedule.server.core.mapper.UserMapper;
 import com.ke.schedule.server.core.model.db.ProjectUser;
 import com.ke.schedule.server.core.model.db.User;
+import com.ke.schedule.server.core.repository.ProjectUserRepository;
+import com.ke.schedule.server.core.repository.UserRepository;
 import com.ke.schedule.server.core.service.IndexService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -23,13 +23,13 @@ public class IndexServiceImpl implements IndexService {
     @Value("${kob-schedule.mysql-prefix}")
     private String mp;
     @Resource
-    private UserMapper userMapper;
+    private ProjectUserRepository projectUserRepository;
     @Resource
-    private ProjectUserMapper projectUserMapper;
+    private UserRepository userRepository;
 
     @Override
     public User selectUserByCodeAndPwd(String code, String pwd) {
-        return userMapper.selectByCodeAndPwd(code, pwd, mp);
+        return userRepository.findByCodeAndPwd(code, pwd);
     }
 
     @Override
@@ -42,22 +42,22 @@ public class IndexServiceImpl implements IndexService {
         projectUser.setConfiguration(configuration);
         projectUser.setProjectMode("service");
         projectUser.setOwner(true);
-        projectUserMapper.insertOne(projectUser, mp);
+        projectUserRepository.save(projectUser);
     }
 
 
     @Override
     public boolean existProject(String projectCode) {
-        return projectUserMapper.selectCountByProjectCode(projectCode, mp) != 0;
+        return projectUserRepository.countByProjectCode(projectCode) != 0;
     }
 
     @Override
     public List<ProjectUser> selectProjectUserByUserCode(String code) {
-        return projectUserMapper.selectByUserCode(code, mp);
+        return projectUserRepository.findProjectUserByUserCode(code);
     }
 
     @Override
     public List<ProjectUser> selectProject() {
-        return projectUserMapper.selectProjectIsOwner(mp);
+        return projectUserRepository.findProjectUserByOwner(true);
     }
 }

@@ -3,6 +3,7 @@ package com.ke.schedule.server.console.controller;
 import com.ke.schedule.server.core.common.Attribute;
 import com.ke.schedule.server.core.common.FtlPath;
 import com.ke.schedule.server.core.model.db.ProjectUser;
+import com.ke.schedule.server.core.model.db.TaskRecord;
 import com.ke.schedule.server.core.model.db.User;
 import com.ke.schedule.server.core.model.oz.ResponseData;
 import com.ke.schedule.server.core.service.IndexService;
@@ -118,7 +119,7 @@ public class IndexController {
         Date initDateByDay = KobUtils.initDateByDay();
         param.put("triggerTimeStart", KobUtils.addHour(initDateByDay, -24).getTime());
         param.put("triggerTimeEnd", initDateByDay.getTime());
-        Integer tomorrowRecordCount = loggerService.selectTaskRecordCountByParam(param);
+        long tomorrowRecordCount = loggerService.selectTaskRecordCountByParam(param);
         model.addAttribute("tomorrow_record_count", tomorrowRecordCount);
         model.addAttribute("project", projectUsers);
         model.addAttribute(Attribute.INDEX_SCREEN, FtlPath.INDEX_WELCOME_PATH);

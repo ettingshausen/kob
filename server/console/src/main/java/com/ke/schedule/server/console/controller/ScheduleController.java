@@ -1,7 +1,10 @@
 package com.ke.schedule.server.console.controller;
 
 import com.alibaba.fastjson.JSONObject;
+import com.ke.schedule.basic.constant.TaskContextKeyConstant;
 import com.ke.schedule.basic.model.*;
+import com.ke.schedule.basic.support.KobUtils;
+import com.ke.schedule.basic.support.UuidUtils;
 import com.ke.schedule.server.core.common.Attribute;
 import com.ke.schedule.server.core.common.CronExpression;
 import com.ke.schedule.server.core.common.FtlPath;
@@ -12,17 +15,20 @@ import com.ke.schedule.server.core.model.db.User;
 import com.ke.schedule.server.core.model.oz.BatchType;
 import com.ke.schedule.server.core.model.oz.ResponseData;
 import com.ke.schedule.server.core.model.oz.RetryType;
+import com.ke.schedule.server.core.repository.JobCronRepository;
+import com.ke.schedule.server.core.repository.TaskWaitingRepository;
 import com.ke.schedule.server.core.service.NodeService;
 import com.ke.schedule.server.core.service.ScheduleService;
-import com.ke.schedule.basic.constant.TaskContextKeyConstant;
-import com.ke.schedule.basic.support.KobUtils;
-import com.ke.schedule.basic.support.UuidUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -36,12 +42,16 @@ import java.util.Map;
 
 @RequestMapping("/schedule")
 @Controller
-public @Slf4j class ScheduleController {
+public @Slf4j
+class ScheduleController {
 
     @Resource
     private ScheduleService scheduleService;
     @Resource
     private NodeService nodeService;
+
+    @Resource
+    private TaskWaitingRepository taskWaitingRepository;
 
     @RequestMapping(value = "/job_init.htm")
     public String jobInitPage(Model model) throws Exception {
@@ -209,18 +219,20 @@ public @Slf4j class ScheduleController {
         return FtlPath.INDEX_PATH;
     }
 
+    @Resource
+    private JobCronRepository jobCronRepository;
+
     @RequestMapping(value = "/job_cron_list.json")
     @ResponseBody
-    public ResponseData cronJobList() {
+    public ResponseData cronJobList(@RequestParam int pageNum, @RequestParam int pageSize) {
         HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-        Integer start = Integer.valueOf(request.getParameter("start"));
-        Integer limit = Integer.valueOf(request.getParameter("limit"));
         ProjectUser projectUser = (ProjectUser) request.getSession().getAttribute(Attribute.PROJECT_SELECTED);
-        int count = scheduleService.selectCronJobCountByProjectCode(projectUser.getProjectCode());
+        Long count = scheduleService.selectCronJobCountByProjectCode(projectUser.getProjectCode());
         if (count == 0) {
             return ResponseData.success(0);
         }
-        List<JobCron> jobCronList = scheduleService.selectJobCronPageByProject(projectUser.getProjectCode(), start, limit);
+        Pageable pageable = PageRequest.of(pageNum, pageSize);
+        List<JobCron> jobCronList = jobCronRepository.findJobCronsByProjectCode(projectUser.getProjectCode(), pageable).getContent();
         return ResponseData.success(count, jobCronList);
     }
 
@@ -279,17 +291,12 @@ public @Slf4j class ScheduleController {
 
     @RequestMapping(value = "/task_waiting_list.json")
     @ResponseBody
-    public ResponseData taskWaitingList() {
+    public ResponseData taskWaitingList(@RequestParam int pageNum, @RequestParam int pageSize) {
         HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-        Integer start = Integer.valueOf(request.getParameter("start"));
-        Integer limit = Integer.valueOf(request.getParameter("limit"));
         ProjectUser projectUser = (ProjectUser) request.getSession().getAttribute(Attribute.PROJECT_SELECTED);
-        int count = scheduleService.selectTaskWaitingCountByProjectCode(projectUser.getProjectCode());
-        if (count == 0) {
-            return ResponseData.success(0);
-        }
-        List<TaskWaiting> taskWaitingList = scheduleService.selectTaskWaitingPageByProject(projectUser.getProjectCode(), start, limit);
-        return ResponseData.success(count, taskWaitingList);
+        Pageable pageable = PageRequest.of(pageNum, pageSize);
+        Page<TaskWaiting> page = taskWaitingRepository.findTaskWaitingsByProjectCode(projectUser.getProjectCode(), pageable);
+        return ResponseData.success(page.getTotalElements(), page.getContent());
     }
 
     @RequestMapping(value = "/task_trigger_opt.json")
@@ -308,7 +315,7 @@ public @Slf4j class ScheduleController {
         HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
         ProjectUser projectUser = (ProjectUser) request.getSession().getAttribute(Attribute.PROJECT_SELECTED);
         String taskUuid = request.getParameter("taskUuid");
-        int count = scheduleService.delTaskWaiting(taskUuid, projectUser.getProjectCode());
+        scheduleService.delTaskWaiting(taskUuid, projectUser.getProjectCode());
         return ResponseData.success();
     }
 

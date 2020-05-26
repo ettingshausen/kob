@@ -143,7 +143,8 @@ function FooTable(options) {
     _this.post = function (params, curPage) {
         params['start'] = (curPage - 1) * _this.pageSize;
         params['limit'] = _this.pageSize;
-        params['currentPage'] = curPage;
+        //JPA paging start with 0
+        params['pageNum'] = curPage - 1;
         params['pageSize'] = _this.pageSize;
 
         post(_this.url, params, function (data) {

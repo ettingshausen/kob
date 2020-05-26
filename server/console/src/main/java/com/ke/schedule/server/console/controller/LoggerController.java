@@ -81,8 +81,6 @@ class LoggerController {
     @ResponseBody
     public ResponseData taskWaitingList(@RequestParam int pageNum, @RequestParam int pageSize) {
         HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-        Integer start = Integer.valueOf(request.getParameter("start"));
-        Integer limit = Integer.valueOf(request.getParameter("limit"));
         String triggerTimeStart = request.getParameter("trigger_time_start");
         String triggerTimeEnd = request.getParameter("trigger_time_end");
 
@@ -149,8 +147,6 @@ class LoggerController {
     @ResponseBody
     public ResponseData logCollectList(@RequestParam int pageNum, @RequestParam int pageSize) {
         HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-        Integer start = Integer.valueOf(request.getParameter("start"));
-        Integer limit = Integer.valueOf(request.getParameter("limit"));
         ProjectUser projectUser = (ProjectUser) request.getSession().getAttribute(Attribute.PROJECT_SELECTED);
         String paramTaskUuid = request.getParameter("task_uuid");
         String taskUuid = null;

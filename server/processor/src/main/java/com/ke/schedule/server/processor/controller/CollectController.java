@@ -40,7 +40,7 @@ class CollectController {
             log.info("system_logger request parameters: " + json.toJSONString());
             LogContext context = JSONObject.parseObject(json.toJSONString(), LogContext.class);
             pool.execute(() -> collectService.handleLogger(context));
-            if(pool.getActiveCount()>16){
+            if (pool.getActiveCount() > 16) {
                 log.info("send qw");
             }
         } catch (Exception e) {

@@ -170,7 +170,7 @@
             url: '/schedule/job_cron_list.json',
             templateId: 'foo_table'
         });
-        _table.post({}, 0);
+        _table.post({}, 1);
 
         $(document).on("click", ".kob-opt-suspend", function () {
             var params = {};

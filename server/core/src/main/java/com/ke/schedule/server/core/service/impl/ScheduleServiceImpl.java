@@ -27,6 +27,7 @@ import org.apache.zookeeper.CreateMode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
@@ -147,34 +148,6 @@ class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
-    public void pushTask0(TaskWaiting tw, String cluster) {
-        TaskContext context = new TaskContext();
-        context.getData().setProjectCode(tw.getProjectCode());
-        context.getData().setJobUuid(tw.getJobUuid());
-        context.getData().setJobCn(tw.getJobCn());
-        context.getPath().setTaskUuid(tw.getTaskUuid());
-        context.getPath().setTaskKey(tw.getTaskKey());
-        context.getPath().setTriggerTime(tw.getTriggerTime());
-        context.getPath().setDesignatedNode(tw.getInnerParamsBean().getDesignatedNode());
-        context.getPath().setRecommendNode(tw.getInnerParamsBean().getRecommendNode());
-        context.getPath().setTryToExclusionNode(tw.getInnerParamsBean().getTryToExclusionNode());
-        context.getData().setUserParam(JSONObject.parseObject(tw.getUserParams()));
-        String projectTaskPath = ZkPathConstant.clientTaskPath(cluster, context.getData().getProjectCode());
-        int state = TaskRecordStateConstant.PUSH_SUCCESS;
-        TaskRecord params = new TaskRecord();
-        try {
-            curator.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(projectTaskPath + ZkPathConstant.BACKSLASH + JSONObject.toJSONString(context));
-        } catch (Exception e) {
-            log.error("pushTask_error 推送zk事件异常", e);
-            state = TaskRecordStateConstant.PUSH_FAIL;
-            params.setComplete(true);
-        }
-        params.setTaskUuid(tw.getTaskUuid());
-        params.setState(state);
-        taskRecordRepository.save(params);
-    }
-
-    @Override
     public Boolean lockPushTask(TaskWaiting tw, String cluster, String serverIdentification) {
         return null;
     }
@@ -184,12 +157,7 @@ class ScheduleServiceImpl implements ScheduleService {
         overstockTask.forEach(t -> {
             try {
                 curator.delete().forPath(t.getPath());
-                TaskRecord record = new TaskRecord();
-                record.setState(TaskRecordStateConstant.STACKED_RECYCLING);
-                record.setTaskUuid(t.getTaskUuid());
-                record.setComplete(true);
-                // update task_record set state = #{state}, complete = 1 where task_uuid = #{taskUuid}
-                taskRecordRepository.save(record);
+                taskRecordRepository.updateStateByTaskUuid(t.getTaskUuid(), TaskRecordStateConstant.STACKED_RECYCLING);
             } catch (Exception e) {
                 log.error("er", e);
             }
@@ -210,16 +178,13 @@ class ScheduleServiceImpl implements ScheduleService {
     @Override
     public void handleExpireTask(TaskRecord taskExpire, String cluster) {
         //todo  后期需要判断zk 任务是否在运行
-        // update task_record set state = #{state}, complete = 1 where task_uuid = #{taskUuid}
-        TaskRecord record = new TaskRecord();
-        record.setState(TaskRecordStateConstant.EXECUTE_EXPIRE);
-        record.setTaskUuid(taskExpire.getTaskUuid());
-        taskRecordRepository.save(record);
+        taskRecordRepository.updateStateByTaskUuid(taskExpire.getTaskUuid(), TaskRecordStateConstant.EXECUTE_EXPIRE);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void handleTaskLog(LogContext context, TaskRecord taskRecord) {
-        TaskRecord params = new TaskRecord();
+        TaskRecord params = taskRecordRepository.findByTaskUuid(context.getTaskUuid());
         boolean executeWanted = false;
         if (TaskRecordStateConstant.RECEIVE_SUCCESS == context.getState()) {
             executeWanted = true;
@@ -259,7 +224,6 @@ class ScheduleServiceImpl implements ScheduleService {
             params.setMsg(context.getMsg());
         }
         if (executeWanted) {
-            params.setTaskUuid(context.getTaskUuid());
             taskRecordRepository.save(params);
         }
         if (needAppendRetry) {
@@ -290,7 +254,7 @@ class ScheduleServiceImpl implements ScheduleService {
         context.getData().setUserParam(JSONObject.parseObject(retryTask.getUserParams()));
         String projectTaskPath = ZkPathConstant.clientTaskPath(mp, context.getData().getProjectCode());
         int state = TaskRecordStateConstant.PUSH_SUCCESS;
-        TaskRecord params = new TaskRecord();
+        TaskRecord params = taskRecordRepository.findByTaskUuid(appendRetryTaskUuid);
         try {
             curator.create().withMode(CreateMode.PERSISTENT).forPath(projectTaskPath + ZkPathConstant.BACKSLASH + JSONObject.toJSONString(context));
         } catch (Exception e) {
@@ -457,7 +421,7 @@ class ScheduleServiceImpl implements ScheduleService {
         context.getData().setUserParam(JSONObject.parseObject(tw.getUserParams()));
         String projectTaskPath = ZkPathConstant.clientTaskPath(zp, context.getData().getProjectCode());
         int state = TaskRecordStateConstant.PUSH_SUCCESS;
-        TaskRecord params = new TaskRecord();
+        TaskRecord params = taskRecordRepository.findByTaskUuid(tw.getTaskUuid());
         try {
             alarmService.send(taskRecord);
             curator.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(projectTaskPath + ZkPathConstant.BACKSLASH + context.getZkPath(), JSONObject.toJSONString(context.getData()).getBytes());
@@ -469,6 +433,7 @@ class ScheduleServiceImpl implements ScheduleService {
         params.setState(state);
         params.setTaskUuid(tw.getTaskUuid());
         taskRecordRepository.save(params);
+//        taskRecordRepository.updateStateByTaskUuid(tw.getTaskUuid(), state);
         return true;
     }
 

@@ -21,8 +21,6 @@ public interface ScheduleService {
 
     void createCronWaitingTaskForTime(String serverIdentification, JobCron jobCron, boolean appendPreviousTask, Integer intervalMin, Date now);
 
-    void pushTask0(TaskWaiting tw, String cluster);
-
     Boolean lockPushTask(TaskWaiting tw, String cluster, String serverIdentification);
 
     void fireOverstockTask(List<TaskContext.Path> overstockTask);

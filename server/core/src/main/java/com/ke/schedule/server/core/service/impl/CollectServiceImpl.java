@@ -2,13 +2,13 @@ package com.ke.schedule.server.core.service.impl;
 
 import com.alibaba.fastjson.JSONObject;
 import com.ke.schedule.basic.constant.TaskRecordStateConstant;
+import com.ke.schedule.basic.model.LogContext;
 import com.ke.schedule.server.core.model.db.LogCollect;
 import com.ke.schedule.server.core.model.db.TaskRecord;
 import com.ke.schedule.server.core.repository.LogCollectRepository;
 import com.ke.schedule.server.core.repository.TaskRecordRepository;
 import com.ke.schedule.server.core.service.CollectService;
 import com.ke.schedule.server.core.service.ScheduleService;
-import com.ke.schedule.basic.model.LogContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

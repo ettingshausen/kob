@@ -6,6 +6,9 @@ import lombok.Setter;
 
 import java.io.Serializable;
 
+/**
+ * @author ettingshausen
+ */
 public @NoArgsConstructor @Getter @Setter class LogContext implements Serializable {
 
     private static final long serialVersionUID = -6918526595897276922L;

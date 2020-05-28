@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import javax.persistence.*;
@@ -16,7 +17,7 @@ import java.util.Date;
  * @Author: zhaoyuguang
  * @Date: 2018/7/31 上午10:45
  */
-
+@DynamicUpdate
 @Entity
 public @NoArgsConstructor @Getter @Setter class TaskRecord implements Serializable {
 
@@ -152,7 +153,7 @@ public @NoArgsConstructor @Getter @Setter class TaskRecord implements Serializab
     /**
      * 乐观锁
      */
-    @Version
+//    @Version
     private Integer version;
     /**
      * 创建时间

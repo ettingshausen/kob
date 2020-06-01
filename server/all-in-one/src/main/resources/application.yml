@@ -2,6 +2,8 @@ server:
   port: 8668
 
 spring:
+  profiles:
+    active: h2
   application:
     name: kob-server
   freemarker:
@@ -9,13 +11,6 @@ spring:
     suffix:
   mvc:
     static-path-pattern: /static/**
-  datasource:
-    username: root
-    password: pwd
-    url: jdbc:mysql://localhost:3306/kob?useUnicode=yes&characterEncoding=UTF8
-    driver-class-name: com.mysql.jdbc.Driver
-    tomcat:
-      init-s-q-l: SET NAMES utf8mb4
   jpa:
     hibernate:
       ddl-auto: update

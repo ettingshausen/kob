@@ -11,7 +11,6 @@ import com.ke.schedule.basic.support.UuidUtils;
 import com.ke.schedule.client.spring.annotation.Task;
 import com.ke.schedule.client.spring.constant.ClientConstant;
 import com.ke.schedule.client.spring.constant.ClientLogConstant;
-import javafx.util.Pair;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -20,6 +19,7 @@ import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.exception.ZkMarshallingError;
 import org.I0Itec.zkclient.exception.ZkTimeoutException;
 import org.I0Itec.zkclient.serialize.ZkSerializer;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.CollectionUtils;
 
@@ -44,12 +44,14 @@ class ClientContext {
     private @Getter ClientData data;
     private @Getter ZkClient zkClient;
     private @Getter String clientTaskPath;
-    private @Getter String clientNodePath;
-    private @Getter Map<String, Pair<String, Function<TaskContext, TaskResult>>> runner;
-    private @Getter ThreadPoolExecutor pool;
+    private @Getter
+    String clientNodePath;
+    private @Getter
+    Map<String, ImmutablePair<String, Function<TaskContext, TaskResult>>> runner;
+    private @Getter
+    ThreadPoolExecutor pool;
     private @Getter @Setter String adminUrl;
     private @Getter @Setter String zkConnect;
-
     static class Builder {
         private ClientContext context;
 
@@ -98,7 +100,7 @@ class ClientContext {
                         for (final Method method : methods) {
                             Task task = AnnotationUtils.findAnnotation(method, Task.class);
                             if (task != null) {
-                                context.runner.put(task.key(), new Pair<>(task.remark(), TaskRunnerBuilder.build(v, method)));
+                                context.runner.put(task.key(), new ImmutablePair<>(task.remark(), TaskRunnerBuilder.build(v, method)));
                             }
                         }
                     }

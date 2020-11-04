@@ -4,7 +4,7 @@
 
 随着贝壳的业务功能的不断扩大，具有复杂功能的单体应用随之进入了微服务开发的迭代模式。项目需要作业调度模块是个常见需求，在之前单体系统中，集成了Quartz完成作业调度模块，因为单体应用集成一次后，单从技术层面看几乎没有新的工作量，而且整体还是比较稳定的，但是当单体应用进行微服务拆分后，很多微服务项目都需要集成作业调度模块，常规的一些作业调度实现，已经无法满足公司级的微服务项目扩张，一种轻量级、分布式、统一管理的作业调度框架势在必行。
 
-![cache redis](https://raw.githubusercontent.com/zhaoyuguang/test/master/chaifen0.png)
+![cache redis](docs/images/chaifen0.png)
 
 ### 需求 
 
@@ -24,12 +24,12 @@
 
 深度了解学习改造Quartz源码，将Quartz使用DB迁移至使用Zookeeper，通过开发后端管理系统操作Zookeeper，从而来管理整个作业调度任务的配置，这种形态的作业调度，原理上作业调度实现还是在客户端完成，管理系统很弱化。这样的作业调度系统有个与生俱来的优势是：在管理系统出现故障时候也不会影响作业的继续作业。因为客户端项目几乎集成全量的作业调度代码实现。
 
-![cache redis](https://raw.githubusercontent.com/zhaoyuguang/test/master/xingtai2.png)
+![cache redis](docs/images/xingtai2.png)
 
 #### Quartz服务端形态
 
 将Quartz抽象并封装成服务端，客户端通过基础client-refence.jar完成任务的 hook method 暴露，服务端完成作业配置任务，当作业有任务触发时，通过一种协议触发客户端项目任务的勾子方法，完成调度。这种形态的作业调度框架，客户端一定程度减少了作业调度代码量，和项目性能消耗，但是带来了很多分布式调度问题，需要深入了解整体调度的实现。
-![cache redis](https://raw.githubusercontent.com/zhaoyuguang/test/master/xingtai1.png)
+![cache redis](docs/images/xingtai1.png)
 
 #### 自实现调度系统
 
@@ -44,11 +44,11 @@
 
 #### 整体架构设计
 
-![cache redis](https://raw.githubusercontent.com/zhaoyuguang/test/master/fm.png)
+![cache redis](docs/images/fm.png)
 
 #### 作业调度原理实现
 
-![cache redis](https://raw.githubusercontent.com/zhaoyuguang/test/master/liuchengtu.png)
+![cache redis](docs/images/liuchengtu.png)
 
 #### 作业调度服务端高可用的实现方案
 
@@ -122,7 +122,7 @@ mvn clean install -DskipTests
 ```
 
 #### 创建项目 
-![cache redis](https://raw.githubusercontent.com/zhaoyuguang/test/master/project_access.png)
+![cache redis](docs/images/project_access.png)
 
 #### Client配置文件 
 ```java
@@ -143,7 +143,7 @@ public TaskResult helloWorld(TaskBaseContext context){
 ```
 
 #### Server配置作业 
-![cache redis](https://raw.githubusercontent.com/zhaoyuguang/test/master/job_init.png)
+![cache redis](docs/images/job_init.png)
 
 ### 联系我们 
 ```

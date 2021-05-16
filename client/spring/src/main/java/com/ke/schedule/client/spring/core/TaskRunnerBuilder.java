@@ -9,8 +9,8 @@ import java.util.function.Function;
 public class TaskRunnerBuilder {
 
     public static Function<TaskContext, TaskResult> build(final Object targetObject, final Method method) {
-        return context -> {
-            Object[] parameters = new Object[]{context};
+        return taskContext -> {
+            Object[] parameters = new Object[]{taskContext};
             try {
                 return (TaskResult) method.invoke(targetObject, parameters);
             } catch (Exception e) {
